@@ -22,8 +22,9 @@
 1. **부위 데이터와 인체 그림** — `app/lib/bodyParts.ts`에 부위 목록을 넣고,
    `app/components/BodyMap.tsx`가 앞면·뒷면 2D 이미지 위에 부위별 클릭 영역을 얹는다. 앞뒤 전환과
    선택된 부위 색 구분까지. **해부 이미지를 먼저 구해야 한다** (아래 막혀 있는 것 참조).
-2. **기록 저장** — `app/lib/records.ts`에 읽기·쓰기·수정·삭제를 넣는다. 저장 키와 필드 형식은
-   `docs/contracts.md`에 정해져 있다.
+2. **기록 저장** — `app/lib/records.ts`에 읽기·쓰기·수정·삭제를 넣는다. 저장 키는
+   `bodylog.records`이고, 기록 하나는 `id`·`bodyPartId`·`symptoms`·`predictedCondition`·
+   `summary`·`createdAt`을 갖는다.
 3. **진단 화면 (AI 없이)** — `app/diagnose/page.tsx`. 부위 선택 → `app/lib/symptoms.ts`가 계산한
    증상 목록 체크 → 저장까지. 이 단계까지 만들면 AI 없이도 앱이 동작한다.
 4. **AI 연결** — `app/api/chat/route.ts`와 `app/lib/chatClient.ts`. 대화 주고받기와 정리 결과
@@ -39,7 +40,8 @@
 
 ## 막혀 있는 것
 
-- **자유롭게 쓸 수 있는 해부 이미지가 없다.** 1번을 시작할 수 없다. 자세한 내용은
-  `docs/tracking/findings.md`에 있다.
+- **자유롭게 쓸 수 있는 해부 이미지가 없다.** 참고로 본 이미지는 검색으로 찾은 것이라 출처와
+  라이선스를 알 수 없어 쓸 수 없다. 인체 그림이 없으면 부위 선택도 화면도 만들 수 없으므로
+  1번부터 막힌다.
 - **OpenAI 유료 키가 아직 발급되지 않았다.** 4번을 동작 확인까지 끝내려면 필요하다. 카드 등록이
   필요하다. 3번까지는 키 없이 만들 수 있다.

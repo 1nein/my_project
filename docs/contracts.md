@@ -26,7 +26,7 @@
 | 키 | 타입 | 필수 | 뜻 |
 |---|---|---|---|
 | `mode` | `"chat"` \| `"summarize"` | 예 | `chat`은 대화를 이어가기, `summarize`는 정리 결과 받기 |
-| `bodyPartId` | 문자열 | 예 | 사용자가 고른 부위 식별자. `docs/business-rules.md`의 부위 목록에 있는 값 |
+| `bodyPartId` | 문자열 | 예 | 사용자가 고른 부위 식별자. `app/lib/bodyParts.ts`의 목록에 있는 값 |
 | `checkedSymptoms` | 문자열 배열 | 예 | 사용자가 체크한 증상 이름. 없으면 빈 배열 |
 | `messages` | 메시지 배열 | 예 | 지금까지 주고받은 대화. 첫 호출이면 사용자 메시지 하나만 들어간다 |
 
