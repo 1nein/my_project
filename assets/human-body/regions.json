@@ -1,0 +1,108 @@
+{
+  "height_m": 1.692,
+  "front_gltf": "+Z",
+  "left_right": "anatomical",
+  "triangles": 6156,
+  "regions": [
+    {
+      "id": "pelvis",
+      "label": "골반"
+    },
+    {
+      "id": "abdomen",
+      "label": "복부 / 허리"
+    },
+    {
+      "id": "chest",
+      "label": "가슴 / 등"
+    },
+    {
+      "id": "neck",
+      "label": "목"
+    },
+    {
+      "id": "head",
+      "label": "머리"
+    },
+    {
+      "id": "left_upper_arm",
+      "label": "왼쪽 위팔 / 어깨"
+    },
+    {
+      "id": "left_elbow",
+      "label": "왼쪽 팔꿈치"
+    },
+    {
+      "id": "left_forearm",
+      "label": "왼쪽 아래팔"
+    },
+    {
+      "id": "left_wrist",
+      "label": "왼쪽 손목"
+    },
+    {
+      "id": "left_hand",
+      "label": "왼쪽 손"
+    },
+    {
+      "id": "left_thigh",
+      "label": "왼쪽 허벅지"
+    },
+    {
+      "id": "left_knee",
+      "label": "왼쪽 무릎"
+    },
+    {
+      "id": "left_shin",
+      "label": "왼쪽 종아리 / 정강이"
+    },
+    {
+      "id": "left_ankle",
+      "label": "왼쪽 발목"
+    },
+    {
+      "id": "left_foot",
+      "label": "왼쪽 발"
+    },
+    {
+      "id": "right_upper_arm",
+      "label": "오른쪽 위팔 / 어깨"
+    },
+    {
+      "id": "right_elbow",
+      "label": "오른쪽 팔꿈치"
+    },
+    {
+      "id": "right_forearm",
+      "label": "오른쪽 아래팔"
+    },
+    {
+      "id": "right_wrist",
+      "label": "오른쪽 손목"
+    },
+    {
+      "id": "right_hand",
+      "label": "오른쪽 손"
+    },
+    {
+      "id": "right_thigh",
+      "label": "오른쪽 허벅지"
+    },
+    {
+      "id": "right_knee",
+      "label": "오른쪽 무릎"
+    },
+    {
+      "id": "right_shin",
+      "label": "오른쪽 종아리 / 정강이"
+    },
+    {
+      "id": "right_ankle",
+      "label": "오른쪽 발목"
+    },
+    {
+      "id": "right_foot",
+      "label": "오른쪽 발"
+    }
+  ]
+}
