@@ -40,5 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# dryforge
+# 작업용 임시 폴더
 .dryforge/

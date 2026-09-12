@@ -54,7 +54,9 @@ npm run build
   (예: `BodyMap.tsx` → `export default function BodyMap`)
 - `app/lib` 아래 파일은 `camelCase.ts`다. (예: `bodyParts.ts`)
 - 라우트 폴더 이름은 소문자다. (예: `app/diagnose/`)
-- 타입 이름은 `PascalCase`다. (예: `Record`, `BodyPart`)
+- 타입 이름은 `PascalCase`다. (예: `SymptomRecord`, `BodyPart`)
+  기록 타입을 `Record`로 짓지 않는다. TypeScript 내장 `Record<K, V>`와 이름이 겹쳐 같은 파일에서
+  둘 다 쓰면 깨진다.
 
 ## 구조
 
@@ -63,8 +65,8 @@ npm run build
 - **`localStorage`를 부르는 곳은 `app/lib/records.ts` 한 곳이다.** 화면과 컴포넌트가
   `localStorage`를 직접 읽거나 쓰지 않는다.
   위반 판정: `app/lib/records.ts` 밖에 `localStorage`가 나오면 위반이다.
-- **OpenAI를 부르는 곳은 `app/api/chat/route.ts` 한 곳이다.** 브라우저에서 실행되는 코드가
-  OpenAI 주소를 직접 부르지 않는다.
+- **OpenAI를 부르는 곳은 `app/api/` 아래의 Route Handler뿐이다.** 지금은 `app/api/chat/route.ts`
+  하나다. 브라우저에서 실행되는 코드가 OpenAI 주소를 직접 부르지 않는다.
   위반 판정: `app/api/` 밖에 OpenAI 주소나 OpenAI SDK 호출이 나오면 위반이다.
 - **인체 그림을 그리는 코드는 기록을 읽거나 쓰지 않는다.** `BodyMap.tsx`는 부위를 그리고 클릭을
   바깥으로 알릴 뿐이다. 마크를 그리는 일은 `BodyPartMarks.tsx`가 받은 값으로 한다.

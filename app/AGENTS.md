@@ -25,8 +25,9 @@
 
 - **`localStorage`를 부르는 곳은 `lib/records.ts` 한 곳이다.** 화면과 컴포넌트가 저장소를 직접
   읽거나 쓰지 않는다. `lib/records.ts` 밖에 `localStorage`라는 이름이 나오면 어긴 것이다.
-- **OpenAI를 부르는 곳은 `api/chat/route.ts` 한 곳이다.** 브라우저에서 실행되는 코드가 OpenAI
-  주소를 부르거나 API 키를 읽지 않는다. `api/` 밖에 OpenAI 호출이 나오면 어긴 것이다.
+- **OpenAI를 부르는 곳은 `api/` 아래의 Route Handler뿐이다.** 지금은 `api/chat/route.ts` 하나다.
+  브라우저에서 실행되는 코드가 OpenAI 주소를 부르거나 API 키를 읽지 않는다. `api/` 밖에 OpenAI
+  호출이 나오면 어긴 것이다.
 - **API 키는 `api/chat/route.ts`에서 `process.env.OPENAI_API_KEY`로만 읽는다.** 환경변수 이름에
   `NEXT_PUBLIC_` 접두사를 붙이지 않는다. 붙이면 키가 브라우저 번들에 그대로 들어간다.
 - **`components/BodyMap.tsx`는 기록을 다루지 않는다.** 인체 그림을 그리고 눌린 부위의 식별자를

@@ -9,11 +9,8 @@ npm install
 의존성을 설치한다. Node.js가 먼저 깔려 있어야 한다. `package.json`의 Next.js 16과 React 19가
 Node.js 20 이상을 요구한다.
 
-```bash
-cp .env.local.example .env.local    # 파일이 없으면 직접 만든다
-```
-
-프로젝트 루트에 `.env.local`을 만들고 아래 한 줄을 넣는다.
+프로젝트 루트에 `.env.local` 파일을 직접 만들고 아래 한 줄을 넣는다. 저장소에 예시 파일을 두지
+않는다. `.gitignore`가 `.env`로 시작하는 파일을 모두 막고 있어 커밋할 수 없기 때문이다.
 
 ```
 OPENAI_API_KEY=sk-...
