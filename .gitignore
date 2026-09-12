@@ -42,3 +42,6 @@ next-env.d.ts
 
 # 작업용 임시 폴더
 .dryforge/
+
+# 편집기·도구 개인 설정
+.claude/
