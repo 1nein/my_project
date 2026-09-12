@@ -9,6 +9,13 @@ npm install
 의존성을 설치한다. Node.js가 먼저 깔려 있어야 한다. `package.json`의 Next.js 16과 React 19가
 Node.js 20 이상을 요구한다.
 
+3D 라이브러리가 아직 `package.json`에 없다면 함께 설치한다. 한 번만 하면 된다.
+
+```bash
+npm install three @react-three/fiber @react-three/drei
+npm install -D @types/three
+```
+
 프로젝트 루트에 `.env.local` 파일을 직접 만들고 아래 한 줄을 넣는다. 저장소에 예시 파일을 두지
 않는다. `.gitignore`가 `.env`로 시작하는 파일을 모두 막고 있어 커밋할 수 없기 때문이다.
 
@@ -17,7 +24,10 @@ OPENAI_API_KEY=sk-...
 ```
 
 키는 OpenAI 대시보드에서 발급한다. 카드 등록이 필요하다. **이 파일을 만들기 전에 개발 서버를
-띄우면** AI 대화 기능이 `500`을 돌려주고, 증상 체크와 기록 저장만 동작한다.
+띄우면** AI 대화 기능이 `500`을 돌려주고, 부위 선택·증상 체크·기록 저장은 그대로 동작한다.
+
+쓰는 모델은 `gpt-5-mini`이며 모델 이름은 `app/api/chat/route.ts` 안에 있다. 바꾸려면 그 한 줄만
+고친다.
 
 ```bash
 npm run dev
@@ -72,6 +82,19 @@ Vercel에 올린다.
 
 배포된 주소는 누구나 열 수 있다. 열어서 대화할 때마다 OpenAI 요금이 키 주인에게 청구된다.
 요금 상한이 필요하면 OpenAI 대시보드에서 사용량 한도를 건다.
+
+## 3D 모델 파일
+
+`public/human-body.glb`가 브라우저로 내려가는 모델이다. 111KB 한 파일이고 외부 텍스처가 없어
+따로 챙길 것이 없다. `public/` 아래에 있으므로 별도 설정 없이 `/human-body.glb`로 접근된다.
+
+`assets/human-body/`에는 모델의 Blender 편집 원본과 생성 스크립트가 있다. 앱 실행이나 빌드에
+쓰이지 않으므로 배포 결과물에도 들어가지 않는다. 부위를 더 잘게 나누는 등 모델을 고칠 때만
+쓴다. 생성 스크립트는 Blender 안에서만 실행되며 일반 Python으로는 돌아가지 않는다.
+
+모델을 고쳐 새로 내보냈다면 `public/human-body.glb`를 교체하고, 덩어리 이름과 개수가
+`app/lib/bodyParts.ts`의 목록과 여전히 같은지 확인한다. 이름이 달라지면 이미 저장된 기록의 부위
+식별자가 맞지 않게 된다.
 
 ## 기록 데이터
 

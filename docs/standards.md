@@ -51,7 +51,7 @@ npm run build
 ## 이름
 
 - 컴포넌트 파일은 `PascalCase.tsx`이고, 파일 이름과 기본 내보내기 컴포넌트 이름이 같다.
-  (예: `BodyMap.tsx` → `export default function BodyMap`)
+  (예: `BodyModel.tsx` → `export default function BodyModel`)
 - `app/lib` 아래 파일은 `camelCase.ts`다. (예: `bodyParts.ts`)
 - 라우트 폴더 이름은 소문자다. (예: `app/diagnose/`)
 - 타입 이름은 `PascalCase`다. (예: `SymptomRecord`, `BodyPart`)
@@ -68,9 +68,12 @@ npm run build
 - **OpenAI를 부르는 곳은 `app/api/` 아래의 Route Handler뿐이다.** 지금은 `app/api/chat/route.ts`
   하나다. 브라우저에서 실행되는 코드가 OpenAI 주소를 직접 부르지 않는다.
   위반 판정: `app/api/` 밖에 OpenAI 주소나 OpenAI SDK 호출이 나오면 위반이다.
-- **인체 그림을 그리는 코드는 기록을 읽거나 쓰지 않는다.** `BodyMap.tsx`는 부위를 그리고 클릭을
-  바깥으로 알릴 뿐이다. 마크를 그리는 일은 `BodyPartMarks.tsx`가 받은 값으로 한다.
-  위반 판정: `BodyMap.tsx`가 `records.ts`나 `symptoms.ts`를 가져오면 위반이다.
+- **인체 모델을 그리는 코드는 기록을 읽거나 쓰지 않는다.** `BodyModel.tsx`는 모델을 그리고 눌린
+  부위와 면을 바깥으로 알릴 뿐이다. 어느 부위를 강조할지는 바깥에서 받은 목록으로 정한다.
+  위반 판정: `BodyModel.tsx`가 `records.ts`나 `symptoms.ts`를 가져오면 위반이다.
+- **3D 모델을 불러온 직후 덩어리마다 재질을 복제한다.** 25개 덩어리가 재질 하나를 공유하고 있어서,
+  복제하지 않고 색을 바꾸면 온몸이 함께 바뀐다.
+  위반 판정: 한 부위를 강조했을 때 다른 부위 색도 바뀌면 위반이다.
 
 의존 방향은 화면 → 컴포넌트 → `app/lib` 한 방향이다. `app/lib` 안의 파일이 컴포넌트나 화면을
 가져오지 않는다.
@@ -85,8 +88,10 @@ npm run build
 
 ## 의존성
 
-- 라이브러리를 추가하기 전에 **먼저 사람에게 묻는다.** 이미 들어 있는 Next.js, React, Tailwind
-  CSS로 되는 일에 새 라이브러리를 넣지 않는다.
+- 라이브러리를 추가하기 전에 **먼저 사람에게 묻는다.** 이미 들어 있는 것으로 되는 일에 새
+  라이브러리를 넣지 않는다.
+- 3D를 위한 `three`, `@react-three/fiber`, `@react-three/drei`는 쓰기로 정해져 있다. 이 셋은
+  물어보지 않고 설치해도 된다.
 - 설치는 `npm`으로 한다. `package-lock.json`을 지우거나 다른 패키지 관리자의 잠금 파일을 만들지
   않는다.
 
@@ -94,9 +99,12 @@ npm run build
 
 규칙의 내용이 아니라, 그 규칙을 지키기 위해 코드가 갖춰야 할 구조만 여기 적는다.
 
-- 부위 식별자는 `app/lib/bodyParts.ts`의 목록에서만 나온다. 문자열을 코드 여기저기에 직접 써넣지
-  않는다.
-  위반 판정: `app/lib/bodyParts.ts` 밖에 `"front."` 또는 `"back."`으로 시작하는 문자열 리터럴이
-  있으면 위반이다.
+- 부위 식별자는 `app/lib/bodyParts.ts`의 목록에서만 나온다. `"right_knee"` 같은 문자열을 코드
+  여기저기에 직접 써넣지 않는다.
+  위반 판정: `app/lib/bodyParts.ts` 밖에 부위 식별자 문자열 리터럴이 있으면 위반이다.
+- **`app/lib/bodyParts.ts`의 25개 식별자는 `public/human-body.glb` 안의 덩어리 이름과 정확히
+  같아야 한다.** 앱이 이름을 새로 지으면 눌러도 맞는 부위를 찾지 못한다.
+  위반 판정: 모델의 덩어리 이름 집합과 이 파일의 식별자 집합이 다르면 위반이다.
+- 면 값은 `"front"`, `"back"`, `"side"`, `"unspecified"` 넷뿐이다. 다른 값을 만들지 않는다.
 - 기록을 새로 만들 때 고유 식별자와 저장 일시를 붙이는 일은 `app/lib/records.ts`가 한다. 화면이
   이 값을 만들어 넘기지 않는다.
