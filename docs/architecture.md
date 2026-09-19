@@ -49,6 +49,7 @@ React 위에서 3D를 다루기 위해 세 가지를 쓴다.
 ```
 app/
   layout.tsx                모든 화면을 감싸는 틀
+  manifest.ts               홈 화면에 설치했을 때 쓰이는 앱 정보
   page.tsx                  홈 화면
   diagnose/page.tsx         진단 화면
   api/chat/route.ts         AI 호출 통로 (서버에서만 실행)
@@ -65,6 +66,9 @@ app/
     chatClient.ts           app/api/chat 호출
 public/
   human-body.glb            3D 인체 모델 (브라우저가 받는 파일)
+  sw.js                     오프라인 캐시
+  icons/                    홈 화면 아이콘 (192·512·마스커블)
+  apple-touch-icon.png      iOS 홈 화면 아이콘
 assets/human-body/          모델 편집 원본과 생성 스크립트 (앱 실행에 쓰이지 않음)
 docs/                       프로젝트 문서
 ```
@@ -79,6 +83,8 @@ docs/                       프로젝트 문서
 | `records.ts` | `localStorage` 접근 | 브라우저 `localStorage` |
 | `symptoms.ts` | 기록에서 증상 목록을 뽑음 | `records.ts` |
 | `bodyParts.ts` | 부위 목록 | 없음 |
+| `manifest.ts` | 앱 이름·아이콘·시작 주소를 브라우저에 알림 | `public/icons/` |
+| `ServiceWorkerRegistrar.tsx` | 오프라인 캐시를 켬. 화면에 아무것도 그리지 않음 | `public/sw.js` |
 
 의존은 화면 → 컴포넌트 → `lib` 한 방향으로만 흐른다. `lib` 안의 파일이 컴포넌트나 화면을 부르지
 않는다.
@@ -129,6 +135,24 @@ docs/                       프로젝트 문서
 이 경계가 있어야 모델을 더 정밀한 것으로 바꾸거나 렌더링 방식을 바꿀 때 이 파일과 모델 파일만
 갈아끼우면 되고, 화면·기록·증상 쪽 코드는 손대지 않는다. 그리는 코드가 기록을 직접 읽거나
 저장하면 이 교체가 불가능해진다.
+
+## 홈 화면에 설치했을 때
+
+`app/manifest.ts`가 앱 이름과 아이콘, 시작 주소를 알려 준다. `display`가 `standalone`이라 설치한
+뒤에는 주소창 없이 앱처럼 열린다.
+
+`public/sw.js`가 오프라인 캐시를 맡는다. 켜는 곳은 `ServiceWorkerRegistrar.tsx`이며 **배포된
+환경에서만** 켠다. 개발 중에 켜면 캐시가 남아 고친 코드가 화면에 반영되지 않는다.
+
+캐시 규칙은 세 가지다.
+
+| 대상 | 방식 | 이유 |
+|---|---|---|
+| `/_next/static/`, `/icons/`, `/human-body.glb` | 캐시를 먼저 본다 | 내용이 바뀌면 이름도 바뀌거나 거의 바뀌지 않는다 |
+| 화면 | 네트워크를 먼저 보고, 실패하면 캐시 | 새로 배포한 내용이 바로 보여야 한다 |
+| `/api/` | 캐시하지 않는다 | 지난 AI 답변이 다시 나오면 안 된다 |
+
+그래서 인터넷이 끊겨도 화면과 인체 모델은 뜨고, AI 대화만 동작하지 않는다.
 
 ## 외부에 기대는 것
 

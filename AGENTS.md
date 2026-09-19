@@ -28,9 +28,13 @@ Next.js(App Router) · React · TypeScript · Tailwind CSS로 만들고, 3D는 R
 │           ├── index.md                 ← 결정 목록
 │           └── 0001~0007-*.md           ← 되돌리기 전에 읽을 결정들
 ├── app/
-│   └── AGENTS.md                        ← app 폴더의 담당 범위와 경계
+│   ├── AGENTS.md                        ← app 폴더의 담당 범위와 경계
+│   └── manifest.ts                      ← 홈 화면에 설치했을 때 쓰이는 앱 정보
 ├── public/
-│   └── human-body.glb                   ← 브라우저가 받는 3D 인체 모델
+│   ├── human-body.glb                   ← 브라우저가 받는 3D 인체 모델
+│   ├── sw.js                            ← 오프라인 캐시
+│   ├── apple-touch-icon.png             ← iOS 홈 화면 아이콘
+│   └── icons/                           ← 홈 화면 아이콘 (192·512·마스커블)
 └── assets/
     └── human-body/                      ← 모델 편집 원본과 생성 스크립트 (앱 실행에 쓰이지 않음)
 ```
@@ -65,6 +69,7 @@ Next.js(App Router) · React · TypeScript · Tailwind CSS로 만들고, 3D는 R
 | 증상 목록 | `docs/tracking/decisions/0003-symptoms-from-saved-records.md` |
 | AI 연결, 프롬프트 | `docs/contracts.md`의 호출 통로, `docs/security.md`의 키 정책 |
 | 배포, 환경변수, 모델 교체 | `docs/operations.md` |
+| 홈 화면 설치, 오프라인 캐시, 아이콘 | `docs/operations.md`, `docs/standards.md`의 오프라인 캐시 규칙 |
 | 새 기능을 시작하기 전 | `docs/tracking/status.md`로 지금 위치를 확인 |
 
 `docs/business-rules.md`에 없는 도메인 판단이 필요하면 임의로 정하지 말고 사람에게 묻는다.
