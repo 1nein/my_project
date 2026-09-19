@@ -163,6 +163,9 @@ docs/                       프로젝트 문서
 | Vercel | 배포 | 로컬 개발에는 영향이 없다 |
 | 브라우저 `localStorage` | `app/lib/records.ts` | 기록을 저장하거나 읽을 수 없다 |
 
+**OpenAI SDK를 설치하지 않았다.** `app/api/chat/route.ts`가 기본 `fetch`로 직접 부른다. 필요한
+것이 요청 한 번과 JSON 하나뿐이라 의존성을 늘릴 이유가 없었다. SDK를 새로 설치하지 않는다.
+
 **쓰는 OpenAI 모델은 `gpt-5-mini`다.** 모델 이름은 `app/api/chat/route.ts` 한 곳에만 둔다.
 바꿀 때 한 줄만 고치면 되게 하기 위해서다. 모델을 바꿔도 통로가 돌려주는 다섯 항목
 (`bodyPartId`·`side`·`symptoms`·`predictedCondition`·`summary`)은 그대로 유지한다.

@@ -26,7 +26,7 @@ Next.js(App Router) · React · TypeScript · Tailwind CSS로 만들고, 3D는 R
 │       ├── findings.md                  ← 지금 해결하지 못한 문제
 │       └── decisions/
 │           ├── index.md                 ← 결정 목록
-│           └── 0001~0007-*.md           ← 되돌리기 전에 읽을 결정들
+│           └── 0001~0008-*.md           ← 되돌리기 전에 읽을 결정들
 ├── app/
 │   ├── AGENTS.md                        ← app 폴더의 담당 범위와 경계
 │   └── manifest.ts                      ← 홈 화면에 설치했을 때 쓰이는 앱 정보
