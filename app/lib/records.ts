@@ -155,6 +155,19 @@ export function getServerRecordsSnapshot(): SymptomRecord[] {
   return EMPTY;
 }
 
+/**
+ * 요약을 줄 단위로 나눈다.
+ *
+ * 요약은 줄마다 한 가지씩 적은 것이라 화면에서 목록으로 보여준다. AI가 줄 앞에 글머리표를
+ * 붙여 보내는 경우가 있어 여기서 떼어 낸다. 줄이 하나뿐인 예전 기록은 한 줄짜리 목록이 된다.
+ */
+export function summaryLines(summary: string): string[] {
+  return summary
+    .split("\n")
+    .map((line) => line.replace(/^[-*·•\s]+/, "").trim())
+    .filter((line) => line.length > 0);
+}
+
 /** 증상도 병명도 요약도 모두 비어 있으면 저장하지 않는다. */
 export function isSavable(input: RecordInput): boolean {
   return (

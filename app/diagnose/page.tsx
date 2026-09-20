@@ -3,18 +3,30 @@
 /**
  * 진단 화면.
  *
- * 부위 선택 → 저장된 증상 체크 → AI 대화 → 정리하기 → 저장의 순서로 진행한다.
- * 대화를 건너뛰고 증상만 체크해서 바로 저장할 수도 있다.
+ * 홈과 달리 흰 바탕에 글을 읽고 고르는 곳이다. 고른 부위는 위쪽 막대에 한 번만 나오고,
+ * 부위를 바꾸는 것도 그 막대에서 한다. 같은 이름을 아래에 다시 적지 않는다.
+ *
+ * 부위를 고르면 AI가 먼저 묻는다. 사용자는 보기를 누르거나 직접 적어 답하고, 정리하기를 누르면
+ * 부위·면·증상·예측 병명·요약이 정리되어 나온다. 대화를 건너뛰고 증상만 체크해 저장해도 된다.
  * 저장하지 않고 떠나면 체크 내용과 대화는 남지 않는다.
  */
 
-import { Suspense, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import BodyModel from "@/app/components/BodyModel";
 import BodyPartPicker from "@/app/components/BodyPartPicker";
 import SymptomChecklist from "@/app/components/SymptomChecklist";
 import ChatPanel from "@/app/components/ChatPanel";
+import SummaryLines from "@/app/components/SummaryLines";
 import {
   SIDES,
   SIDE_LABELS,
@@ -39,6 +51,7 @@ import {
   requestSummary,
   sendChat,
   type ChatMessage,
+  type Choice,
   type SummaryResult,
 } from "@/app/lib/chatClient";
 
@@ -111,11 +124,15 @@ function DiagnoseForm({ records, editingId, draft }: DiagnoseFormProps) {
   const [checked, setChecked] = useState<string[]>(draft.checkedSymptoms);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [choices, setChoices] = useState<Choice[]>([]);
   const [busy, setBusy] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [summary, setSummary] = useState<SummaryResult | null>(null);
   /** 정리를 요청한 시점에 사용자가 고른 부위와 면. AI가 바꿔 제안했는지 판단하는 기준이다. */
   const [requested, setRequested] = useState<{ bodyPartId: string; side: Side } | null>(null);
+
+  /** 첫 질문을 이미 부른 부위. 같은 부위에 두 번 묻지 않게 막는다. */
+  const asked = useRef<string | null>(null);
 
   const symptoms = useMemo(
     () => (bodyPartId ? symptomsFromRecords(records, bodyPartId) : []),
@@ -125,14 +142,56 @@ function DiagnoseForm({ records, editingId, draft }: DiagnoseFormProps) {
   const part = findBodyPart(bodyPartId);
   const showSide = part?.hasSides ?? false;
 
+  const runChat = useCallback(
+    async (next: ChatMessage[]) => {
+      if (!bodyPartId) return;
+      setMessages(next);
+      setChoices([]);
+      setBusy(true);
+      setChatError(null);
+      try {
+        const turn = await sendChat({
+          bodyPartId,
+          side,
+          checkedSymptoms: checked,
+          messages: next,
+        });
+        setMessages([...next, { role: "assistant", content: turn.reply }]);
+        setChoices(turn.choices);
+      } catch (error) {
+        // 실패해도 체크한 증상은 그대로 둔다. 그 상태로 저장할 수 있어야 한다.
+        setChatError(error instanceof ChatError ? error.message : "AI 요청이 실패했습니다.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [bodyPartId, side, checked],
+  );
+
+  /*
+   * 부위를 고르면 AI가 먼저 묻는다.
+   *
+   * 빈 입력창을 내밀면 무엇부터 적어야 할지 알기 어렵다. 첫 질문과 보기를 먼저 받아 두면
+   * 누르기만 해도 대화가 시작된다. 고치는 중일 때는 부르지 않는다. 원래 정리 결과를 그대로
+   * 두고 증상만 손보려는 경우가 있기 때문이다.
+   */
+  useEffect(() => {
+    if (!bodyPartId || editingId) return;
+    if (asked.current === bodyPartId) return;
+    asked.current = bodyPartId;
+    void runChat([]);
+  }, [bodyPartId, editingId, runChat]);
+
   function selectPart(nextId: string, nextSide: Side) {
     if (nextId !== bodyPartId) {
       // 부위가 바뀌면 그 부위의 증상 목록이 달라지므로 체크와 대화를 비운다.
       setChecked([]);
       setMessages([]);
+      setChoices([]);
       setSummary(null);
       setRequested(null);
       setChatError(null);
+      asked.current = null;
     }
     setBodyPartId(nextId);
     setSide(nextSide);
@@ -146,32 +205,11 @@ function DiagnoseForm({ records, editingId, draft }: DiagnoseFormProps) {
     );
   }
 
-  async function handleSend(text: string) {
-    if (!bodyPartId) return;
-    const next: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(next);
-    setBusy(true);
-    setChatError(null);
-    try {
-      const reply = await sendChat({
-        bodyPartId,
-        side,
-        checkedSymptoms: checked,
-        messages: next,
-      });
-      setMessages([...next, { role: "assistant", content: reply }]);
-    } catch (error) {
-      // 실패해도 체크한 증상은 그대로 둔다. 그 상태로 저장할 수 있어야 한다.
-      setChatError(error instanceof ChatError ? error.message : "AI 요청이 실패했습니다.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleSummarize() {
     if (!bodyPartId) return;
     setBusy(true);
     setChatError(null);
+    setChoices([]);
     setRequested({ bodyPartId, side });
     try {
       const result = await requestSummary({
@@ -225,144 +263,125 @@ function DiagnoseForm({ records, editingId, draft }: DiagnoseFormProps) {
     (summary.bodyPartId !== requested.bodyPartId || summary.side !== requested.side);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
-          {editingId ? "기록 수정" : "증상 기록하기"}
-        </h1>
-        <Link href="/" className="text-sm text-slate-600 underline dark:text-slate-300">
-          홈으로
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-white dark:bg-slate-950">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white/90 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+        <Link
+          href="/"
+          aria-label="홈으로"
+          className="shrink-0 px-1 text-xl leading-none text-slate-400"
+        >
+          ←
         </Link>
+        <BodyPartPicker
+          value={bodyPartId}
+          onChange={(id) => selectPart(id, side)}
+          className="min-w-0 flex-1 truncate bg-transparent py-1 text-base font-semibold text-slate-900 dark:text-slate-50"
+        />
+        {showSide && (
+          <select
+            aria-label="면 고르기"
+            value={side}
+            onChange={(event) => {
+              // 네 값만 들어 있는 목록이라 다른 값이 나올 수 없다.
+              setSide(event.target.value as Side);
+            }}
+            className="shrink-0 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+          >
+            {SIDES.map((value) => (
+              <option key={value} value={value}>
+                {SIDE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        )}
       </header>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-          1. 아픈 부위 고르기
-        </h2>
-        <div className="h-[380px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
-          <BodyModel className="relative h-full w-full" selectedId={bodyPartId} onSelect={selectPart} />
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          드래그하면 돌아가고, 부위를 누르면 선택됩니다. 손목·발목처럼 작은 부위는 확대하거나 아래
-          목록에서 고르세요.
-        </p>
-        <BodyPartPicker value={bodyPartId} onChange={(id) => selectPart(id, side)} />
-
-        {bodyPartId && (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
-              {bodyPartLabel(bodyPartId)}
-            </p>
-            {showSide && (
-              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                <span>어느 쪽</span>
-                <select
-                  value={side}
-                  onChange={(event) => setSide(event.target.value as Side)}
-                  className="rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-600 dark:bg-slate-900"
-                >
-                  {SIDES.map((value) => (
-                    <option key={value} value={value}>
-                      {SIDE_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+      <div className="flex flex-1 flex-col gap-5 px-4 py-4">
+        {bodyPartId === null ? (
+          <div className="h-[460px] overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900">
+            <BodyModel className="relative h-full w-full" onSelect={selectPart} />
           </div>
-        )}
-      </section>
-
-      {bodyPartId && (
-        <>
-          <section className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              2. 해당하는 증상 고르기
-            </h2>
+        ) : (
+          <>
             <SymptomChecklist symptoms={symptoms} checked={checked} onToggle={toggleSymptom} />
-          </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              3. AI와 이야기하기
-            </h2>
             <ChatPanel
               messages={messages}
+              choices={choices}
               busy={busy}
               error={chatError}
-              onSend={handleSend}
-              onSummarize={handleSummarize}
+              onSend={(text) => void runChat([...messages, { role: "user", content: text }])}
+              onRetry={() => void runChat(messages)}
             />
-          </section>
 
-          {summary && (
-            <section className="flex flex-col gap-3 rounded-xl border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-slate-900">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-                4. 정리 결과
-              </h2>
-
-              {aiChangedTarget && requested && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                  <span>AI가 부위를 바꿔 제안했습니다.</span>
+            {summary && (
+              <section className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-900 dark:bg-red-950/30">
+                {aiChangedTarget && requested && (
                   <button
                     type="button"
                     onClick={() => {
                       setBodyPartId(requested.bodyPartId);
                       setSide(requested.side);
                     }}
-                    className="rounded-md border border-amber-700 px-2 py-1 text-xs font-medium dark:border-amber-300"
+                    className="self-start rounded-full border border-amber-500 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
                   >
-                    내가 고른 {bodyPartLabel(requested.bodyPartId)}(으)로 되돌리기
+                    {bodyPartLabel(requested.bodyPartId)}(으)로 되돌리기
                   </button>
-                </div>
-              )}
+                )}
 
-              <dl className="flex flex-col gap-2 text-sm">
-                <div className="flex gap-2">
-                  <dt className="w-20 shrink-0 font-medium text-slate-600 dark:text-slate-300">부위</dt>
-                  <dd className="text-slate-900 dark:text-slate-100">
-                    {bodyPartLabel(bodyPartId)}
-                    {showSide && ` · ${SIDE_LABELS[side]}`}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-20 shrink-0 font-medium text-slate-600 dark:text-slate-300">증상</dt>
-                  <dd className="text-slate-900 dark:text-slate-100">
-                    {summary.symptoms.length > 0 ? summary.symptoms.join(", ") : "—"}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-20 shrink-0 font-medium text-slate-600 dark:text-slate-300">
-                    예측한 병명
-                  </dt>
-                  <dd className="text-slate-900 dark:text-slate-100">
-                    {summary.predictedCondition || "—"}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-20 shrink-0 font-medium text-slate-600 dark:text-slate-300">요약</dt>
-                  <dd className="text-slate-900 dark:text-slate-100">{summary.summary || "—"}</dd>
-                </div>
-              </dl>
-            </section>
-          )}
+                {summary.predictedCondition && (
+                  <p className="flex items-center gap-1.5">
+                    {/* 확정된 진단이 아니라는 것을 이름 옆에 붙여 둔다. */}
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                      예측
+                    </span>
+                    <span className="min-w-0 text-base font-semibold text-slate-900 dark:text-slate-50">
+                      {summary.predictedCondition}
+                    </span>
+                  </p>
+                )}
 
-          <div className="flex flex-col gap-2">
+                {summary.symptoms.length > 0 && (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {summary.symptoms.map((item) => (
+                      <li
+                        key={item}
+                        className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <SummaryLines summary={summary.summary} />
+              </section>
+            )}
+          </>
+        )}
+      </div>
+
+      {bodyPartId && (
+        <div className="sticky bottom-0 flex gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          {messages.length > 0 && (
             <button
               type="button"
-              onClick={handleSave}
-              disabled={!canSave}
-              className="rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+              onClick={() => void handleSummarize()}
+              disabled={busy}
+              className="flex-1 rounded-xl border border-slate-300 py-3.5 text-sm font-semibold text-slate-700 disabled:opacity-30 dark:border-slate-600 dark:text-slate-200"
             >
-              {editingId ? "고쳐서 저장하기" : "기록 저장하기"}
+              정리하기
             </button>
-            {!canSave && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                증상을 하나 이상 고르거나 AI 정리를 마쳐야 저장할 수 있습니다.
-              </p>
-            )}
-          </div>
-        </>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!canSave}
+            className="flex-1 rounded-xl bg-slate-900 py-3.5 text-sm font-semibold text-white disabled:opacity-25 dark:bg-white dark:text-slate-900"
+          >
+            저장
+          </button>
+        </div>
       )}
     </main>
   );
@@ -370,13 +389,7 @@ function DiagnoseForm({ records, editingId, draft }: DiagnoseFormProps) {
 
 export default function DiagnosePage() {
   return (
-    <Suspense
-      fallback={
-        <main className="mx-auto w-full max-w-3xl px-4 py-6">
-          <p className="text-sm text-slate-600 dark:text-slate-300">불러오는 중…</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<main className="min-h-[100dvh] bg-white dark:bg-slate-950" />}>
       <DiagnoseLoader />
     </Suspense>
   );

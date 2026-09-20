@@ -23,6 +23,14 @@ const MODEL_URL = "/human-body.glb";
 /** 이 거리 이상 움직였으면 돌리기로 본다. 손가락이 마우스보다 흔들리므로 넉넉하게 잡는다. */
 const DRAG_THRESHOLD_PX = 8;
 
+/**
+ * 처음에 모델에서 얼마나 떨어져서 보는지. 모델 반지름의 배수다.
+ *
+ * 좁은 칸에 넣을 때는 이 값이면 전신이 꽉 찬다. 화면 전체를 쓰는 곳은 더 큰 값을 넘겨
+ * 물러나서 본다.
+ */
+const DEFAULT_DISTANCE = 3.6;
+
 const COLOR_BASE = "#94a3b8";
 const COLOR_RECORDED = "#f59e0b";
 const COLOR_SELECTED = "#ef4444";
@@ -35,6 +43,8 @@ type BodyModelProps = {
   /** 기록이 있는 부위. 강조색으로 칠해진다. */
   recordedIds?: string[];
   onSelect: (bodyPartId: string, side: Side) => void;
+  /** 처음 카메라 거리. 모델 반지름의 배수이며, 클수록 작게 보인다. */
+  distance?: number;
   className?: string;
 };
 
@@ -65,9 +75,10 @@ type SceneProps = {
   selectedId: string | null;
   recordedIds: string[];
   onSelect: (bodyPartId: string, side: Side) => void;
+  distance: number;
 };
 
-function Scene({ selectedId, recordedIds, onSelect }: SceneProps) {
+function Scene({ selectedId, recordedIds, onSelect, distance }: SceneProps) {
   const { scene } = useGLTF(MODEL_URL);
   const { camera } = useThree();
 
@@ -99,9 +110,9 @@ function Scene({ selectedId, recordedIds, onSelect }: SceneProps) {
   // 전신이 잘리지 않도록 인체 중앙 높이를 바라본다. 바닥 원점을 보면 모델이 화면 위로 벗어난다.
   useEffect(() => {
     const { center, radius } = frame;
-    camera.position.set(center.x, center.y, center.z + radius * 3.6);
+    camera.position.set(center.x, center.y, center.z + radius * distance);
     camera.lookAt(center);
-  }, [camera, frame]);
+  }, [camera, frame, distance]);
 
   const recordedKey = recordedIds.join("|");
   const recorded = useMemo(
@@ -194,6 +205,7 @@ export default function BodyModel({
   selectedId = null,
   recordedIds = [],
   onSelect,
+  distance = DEFAULT_DISTANCE,
   className,
 }: BodyModelProps) {
   return (
@@ -212,7 +224,12 @@ export default function BodyModel({
           camera={{ fov: 35, near: 0.01, far: 100 }}
         >
           <Suspense fallback={null}>
-            <Scene selectedId={selectedId} recordedIds={recordedIds} onSelect={onSelect} />
+            <Scene
+              selectedId={selectedId}
+              recordedIds={recordedIds}
+              onSelect={onSelect}
+              distance={distance}
+            />
           </Suspense>
         </Canvas>
         <LoadingOverlay />

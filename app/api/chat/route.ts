@@ -64,6 +64,24 @@ function partLabel(id: string): string {
   return BODY_PARTS.find((part) => part.id === id)?.label ?? id;
 }
 
+/**
+ * 대화 모드에서 지켜야 할 답 형식.
+ *
+ * 빈 입력창 앞에서 무엇을 적을지 고민하지 않도록, AI가 질문 하나와 고를 수 있는 보기를 함께
+ * 내놓는다. 보기에 없는 답은 화면이 따로 마련한 직접 입력으로 받는다.
+ */
+const CHAT_INSTRUCTION = [
+  "이번 답은 형식을 지켜 내놓는다:",
+  "- reply에는 사용자에게 할 질문을 한 문장으로 쓴다. 한 번에 하나만 묻는다.",
+  "- choices에는 그 질문에 바로 답이 되는 보기를 2~5개 넣는다.",
+  "- 보기의 label은 12자 이내의 짧은 이름이고, hint는 그 보기가 무슨 뜻인지 20자 이내로 덧붙이는 한 줄이다. 덧붙일 말이 없으면 hint를 빈 문자열로 둔다.",
+  "- 사용자는 보기를 여러 개 고를 수 있다. 서로 겹치거나 한쪽이 다른 쪽을 포함하는 보기를 넣지 않는다.",
+  "- '기타', '모르겠어요', '직접 입력' 같은 보기는 넣지 않는다. 화면이 따로 제공한다.",
+  "- 사용자가 이미 답한 내용과 겹치는 보기는 넣지 않는다.",
+  "- 주고받은 말이 아직 없으면 그 부위에서 가장 먼저 물어야 할 것을 묻는다.",
+  "- 더 물을 것이 없으면 reply에 정리를 권하는 한 문장을 쓰고 choices를 빈 배열로 둔다.",
+].join("\n");
+
 function systemPrompt(request: ChatRequest): string {
   const checked =
     request.checkedSymptoms.length > 0
@@ -78,13 +96,36 @@ function systemPrompt(request: ChatRequest): string {
     `사용자가 체크한 증상: ${checked}`,
     "",
     "지켜야 할 것:",
-    "- 한국어로, 짧고 쉬운 말로 답한다. 한 번에 한두 가지만 묻는다.",
+    "- 한국어로, 짧고 쉬운 말로 답한다. 한 번에 한 가지만 묻는다.",
     "- 병명을 확정해서 말하지 않는다. 말하게 되면 항상 '예측'임을 밝힌다.",
     "- 사용자가 말한 내용을 넘겨짚지 않는다. 모르는 것은 묻는다.",
     "- 대화 내용이 고른 부위와 다른 곳을 가리키면 다른 부위를 제안해도 된다.",
     "- 증상 이름은 짧고 일관되게 쓴다. 같은 증상을 매번 다르게 부르지 않는다.",
+    ...(request.mode === "chat" ? ["", CHAT_INSTRUCTION] : []),
   ].join("\n");
 }
+
+const CHAT_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: { type: "string", description: "사용자에게 할 질문 한 문장" },
+    choices: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label: { type: "string", description: "보기 이름. 12자 이내" },
+          hint: { type: "string", description: "한 줄 설명. 20자 이내. 덧붙일 말이 없으면 빈 문자열" },
+        },
+        required: ["label", "hint"],
+        additionalProperties: false,
+      },
+      description: "그 질문에 바로 답이 되는 보기 2~5개. 더 물을 것이 없으면 빈 배열",
+    },
+  },
+  required: ["reply", "choices"],
+  additionalProperties: false,
+} as const;
 
 const SUMMARY_SCHEMA = {
   type: "object",
@@ -106,9 +147,12 @@ const SUMMARY_SCHEMA = {
     },
     predictedCondition: {
       type: "string",
-      description: "예측한 병명. 예측할 수 없으면 빈 문자열",
+      description: "가장 가능성이 높아 보이는 병명. 좁힐 수 없으면 '두통'처럼 넓은 이름을 쓴다",
     },
-    summary: { type: "string", description: "한두 문장 요약" },
+    summary: {
+      type: "string",
+      description: "줄바꿈으로 나눈 2~4줄. 한 줄에 한 가지만 담고, 글머리표는 붙이지 않는다",
+    },
   },
   required: ["bodyPartId", "side", "symptoms", "predictedCondition", "summary"],
   additionalProperties: false,
@@ -117,7 +161,12 @@ const SUMMARY_SCHEMA = {
 const SUMMARY_INSTRUCTION = [
   "지금까지의 대화와 체크한 증상을 바탕으로 정리 결과를 만들어라.",
   "증상 이름은 짧은 명사구로 쓴다. 예: '무릎 앞쪽 통증', '계단 내려올 때 악화'.",
-  "병명은 확신할 수 없으면 빈 문자열로 둔다. 확정 표현을 쓰지 않는다.",
+  "병명은 비워 두지 말고 가장 가능성이 높아 보이는 것을 하나 쓴다. 좁힐 수 없으면 '두통', '요통'처럼 넓은 이름이어도 된다. 확정 표현('~입니다', '~로 진단됩니다')은 쓰지 않는다.",
+  "병명에는 이름만 쓴다. '(예측)', '의심', '가능성' 같은 말을 덧붙이지 않는다. 예측이라는 것은 화면이 따로 표시한다.",
+  "요약은 줄바꿈으로 나눈 2~4줄로 쓴다. 한 줄에 한 가지만 담고 20자 안팎으로 끊는다. 예: '하루 전부터 시작', '이마 부위가 계속 아픔'.",
+  "요약의 각 줄 앞에 '-'나 '*' 같은 글머리표를 붙이지 않는다. 화면이 붙인다.",
+  "요약에 병명을 다시 적지 않는다. 병명은 따로 표시된다.",
+  "요약에는 사용자가 말한 것만 적는다. '체크 없음', '정보 없음'처럼 없는 것을 세는 줄은 넣지 않는다.",
   "부위나 면이 처음 고른 것과 다르다고 판단되면 바꿔서 돌려줘도 된다.",
 ].join("\n");
 
@@ -154,12 +203,16 @@ export async function POST(request: Request) {
     model: OPENAI_MODEL,
     messages,
   };
-  if (parsed.mode === "summarize") {
-    payload.response_format = {
-      type: "json_schema",
-      json_schema: { name: "symptom_summary", strict: true, schema: SUMMARY_SCHEMA },
-    };
-  }
+  payload.response_format =
+    parsed.mode === "chat"
+      ? {
+          type: "json_schema",
+          json_schema: { name: "guided_reply", strict: true, schema: CHAT_SCHEMA },
+        }
+      : {
+          type: "json_schema",
+          json_schema: { name: "symptom_summary", strict: true, schema: SUMMARY_SCHEMA },
+        };
 
   let response: Response;
   try {
@@ -208,7 +261,15 @@ export async function POST(request: Request) {
   }
 
   if (parsed.mode === "chat") {
-    return NextResponse.json({ reply: content });
+    try {
+      const turn = JSON.parse(content) as Record<string, unknown>;
+      return NextResponse.json({ reply: turn.reply, choices: turn.choices });
+    } catch {
+      return NextResponse.json(
+        { error: "AI 응답을 읽지 못했습니다. 잠시 뒤 다시 시도해 주세요." },
+        { status: 502 },
+      );
+    }
   }
 
   try {

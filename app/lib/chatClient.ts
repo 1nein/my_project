@@ -16,6 +16,22 @@ export type ChatContext = {
   messages: ChatMessage[];
 };
 
+/** 고를 수 있는 보기 하나. `hint`는 비어 있을 수 있다. */
+export type Choice = {
+  label: string;
+  hint: string;
+};
+
+/**
+ * 대화 한 차례. 질문 하나와 고를 수 있는 보기가 함께 온다.
+ *
+ * 보기는 비어 있을 수 있다. 더 물을 것이 없다는 뜻이며, 그때 화면은 직접 적기만 남긴다.
+ */
+export type ChatTurn = {
+  reply: string;
+  choices: Choice[];
+};
+
 export type SummaryResult = {
   bodyPartId: string;
   side: Side;
@@ -57,13 +73,40 @@ async function call(mode: "chat" | "summarize", context: ChatContext): Promise<u
   return data;
 }
 
-export async function sendChat(context: ChatContext): Promise<string> {
-  const data = await call("chat", context);
-  const reply = (data as { reply?: unknown }).reply;
-  if (typeof reply !== "string" || !reply.trim()) {
+/** 카드 하나에 담을 수 있는 수. 이보다 많이 오면 앞에서부터 자른다. */
+const MAX_CHOICES = 5;
+
+/**
+ * 보기 목록을 읽는다.
+ *
+ * 이름이 비어 있는 보기는 버린다. 누를 수는 있는데 무엇을 고른 것인지 알 수 없는 줄이 화면에
+ * 생기면 안 된다.
+ */
+function toChoices(value: unknown): Choice[] {
+  if (!Array.isArray(value)) return [];
+
+  const choices: Choice[] = [];
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) continue;
+    const raw = item as Record<string, unknown>;
+    const label = typeof raw.label === "string" ? raw.label.trim() : "";
+    if (!label) continue;
+    const hint = typeof raw.hint === "string" ? raw.hint.trim() : "";
+    choices.push({ label, hint });
+  }
+
+  return choices.slice(0, MAX_CHOICES);
+}
+
+export async function sendChat(context: ChatContext): Promise<ChatTurn> {
+  const data = (await call("chat", context)) as Record<string, unknown>;
+
+  const reply = typeof data.reply === "string" ? data.reply.trim() : "";
+  if (!reply) {
     throw new ChatError("AI가 빈 응답을 보냈습니다. 잠시 뒤 다시 시도해 주세요.");
   }
-  return reply;
+
+  return { reply, choices: toChoices(data.choices) };
 }
 
 /**

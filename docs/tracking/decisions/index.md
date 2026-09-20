@@ -13,3 +13,4 @@
 | [0006](0006-3d-body-model.md) | 3D 인체 모델을 바로 쓴다 | 유효 |
 | [0007](0007-react-three-fiber.md) | React 안에서 3D를 다루는 도구로 React Three Fiber를 쓴다 | 유효 |
 | [0008](0008-hand-written-service-worker.md) | 오프라인 캐시를 직접 짠다 | 유효 |
+| [0009](0009-guided-choices-in-chat.md) | AI가 질문과 함께 보기를 내놓는다 | 유효 |
