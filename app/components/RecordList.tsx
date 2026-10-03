@@ -6,6 +6,7 @@
  * 저장 일시 최신순으로 보여준다. 기록을 고치면 저장 일시가 갱신되므로 고친 기록이 맨 위로 온다.
  */
 
+import { useState } from "react";
 import Link from "next/link";
 import { SIDE_LABELS, bodyPartLabel, findBodyPart } from "@/app/lib/bodyParts";
 import SummaryLines from "@/app/components/SummaryLines";
@@ -32,6 +33,13 @@ export default function RecordList({
 }: RecordListProps) {
   const part = findBodyPart(bodyPartId);
   const showSide = part?.hasSides ?? false;
+  /**
+   * 지울지 묻고 있는 기록.
+   *
+   * 브라우저의 확인 창(`window.confirm`)을 쓰지 않는다. 앱 안의 미리보기 창이나 메신저 안의
+   * 브라우저는 확인 창을 띄우지 않고 곧바로 "취소"로 돌려줘서, 삭제를 눌러도 아무 일이 없었다.
+   */
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   return (
     <section className="flex flex-col gap-4">
@@ -75,17 +83,42 @@ export default function RecordList({
                 </Link>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm("이 기록을 지울까요? 되돌릴 수 없습니다.")) {
-                      onDelete(record.id);
-                    }
-                  }}
+                  onClick={() => setConfirmingId(record.id)}
                   className="text-red-500"
                 >
                   삭제
                 </button>
               </div>
             </div>
+
+            {confirmingId === record.id && (
+              <div
+                role="alertdialog"
+                aria-label="기록 삭제 확인"
+                className="mt-2 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 dark:bg-red-950/40"
+              >
+                <p className="min-w-0 flex-1 text-xs text-red-700 dark:text-red-200">
+                  이 기록을 지울까요? 되돌릴 수 없습니다.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingId(null)}
+                  className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 dark:text-slate-400"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingId(null);
+                    onDelete(record.id);
+                  }}
+                  className="shrink-0 rounded-lg bg-red-500 px-2.5 py-1 text-xs font-semibold text-white"
+                >
+                  지우기
+                </button>
+              </div>
+            )}
 
             {record.predictedCondition && (
               <p className="mt-1.5 flex items-center gap-1.5">

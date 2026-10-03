@@ -54,6 +54,17 @@ export default function HomePage() {
     );
   }
 
+  /**
+   * 그 부위의 마지막 기록을 지우면 선택도 함께 푼다.
+   *
+   * 시트만 닫고 선택을 남겨 두면 기록이 없는 부위가 선택색(빨강)으로 칠해진 채 남는다.
+   */
+  function handleDelete(id: string) {
+    const last = openRecords.length === 1 && openRecords[0].id === id;
+    deleteRecord(id);
+    if (last) setOpenPartId(null);
+  }
+
   // 마지막 기록을 지우면 펼칠 것이 없다. 빈 시트를 남기지 않고 닫는다.
   const sheetOpen = openPartId !== null && openRecords.length > 0;
 
@@ -87,7 +98,7 @@ export default function HomePage() {
           <RecordList
             bodyPartId={openPartId}
             records={openRecords}
-            onDelete={deleteRecord}
+            onDelete={handleDelete}
             onClose={() => setOpenPartId(null)}
           />
         </div>
