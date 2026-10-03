@@ -59,6 +59,7 @@ app/
     SymptomChecklist.tsx    증상 체크 목록
     ChatPanel.tsx           AI 대화 — 질문과 보기 카드, 직접 적기
     SummaryLines.tsx        정리 결과의 요약을 줄 목록으로 그림
+    PredictionFeedback.tsx  정리 결과가 맞는지 묻고, 고칠 말을 받음
     RecordList.tsx          한 부위의 기록 목록
     ServiceWorkerRegistrar.tsx  오프라인 캐시를 켬. 화면에 아무것도 그리지 않음
   lib/
@@ -78,11 +79,12 @@ docs/                       프로젝트 문서
 | 구성 요소 | 역할 | 무엇에 기댄다 |
 |---|---|---|
 | `app/page.tsx` | 홈 화면 조립 | `BodyModel`, `BodyPartPicker`, `RecordList`, `records.ts` |
-| `app/diagnose/page.tsx` | 진단 흐름 진행 | `BodyModel`, `BodyPartPicker`, `SymptomChecklist`, `ChatPanel`, `records.ts`, `symptoms.ts`, `chatClient.ts` |
+| `app/diagnose/page.tsx` | 진단 흐름 진행 | `BodyModel`, `BodyPartPicker`, `SymptomChecklist`, `ChatPanel`, `PredictionFeedback`, `records.ts`, `symptoms.ts`, `chatClient.ts` |
 | `app/api/chat/route.ts` | OpenAI 호출 | 환경변수 `OPENAI_API_KEY` |
 | `BodyModel.tsx` | 모델을 그리고, 눌린 부위 식별자와 면을 알림 | `/human-body.glb`, `bodyParts.ts` |
 | `BodyPartPicker.tsx` | 이름 목록으로 고르기 | `bodyParts.ts` |
 | `ChatPanel.tsx` | 질문과 보기를 그리고, 사용자의 답을 바깥으로 올림 | 없음. 호출은 화면이 한다 |
+| `PredictionFeedback.tsx` | 예측이 맞는지 묻고, 맞으면 저장을, 틀리면 고칠 말을 바깥으로 올림 | 없음. 호출은 화면이 한다 |
 | `SummaryLines.tsx` | 요약 문자열을 줄 단위로 나눠 목록으로 그림 | `records.ts`의 `summaryLines` |
 | `records.ts` | `localStorage` 접근 | 브라우저 `localStorage` |
 | `symptoms.ts` | 기록에서 증상 목록을 뽑음 | `records.ts` |
@@ -112,10 +114,14 @@ docs/                       프로젝트 문서
 5. `ChatPanel`이 질문을 카드 제목으로, 보기를 체크 상자 줄로 그린다. 사용자가 고른 보기 이름들은
    쉼표로 이어져 하나의 사용자 메시지가 되고, 화면이 같은 통로를 다시 부른다. 이 과정이 여러 번
    반복된다. 보기에 없는 답은 카드 아래 칸에 직접 적는다.
-6. 사용자가 정리를 요청하면 같은 통로로 한 번 더 부르되, 이번에는 `bodyPartId`·`side`·`symptoms`·
-   `predictedCondition`·`summary` 다섯 가지가 든 결과를 받는다. `summary`는 줄바꿈으로 나뉜 여러
-   줄이고, `SummaryLines`가 이를 목록으로 그린다.
-7. 화면이 결과를 보여준다. AI가 부위나 면을 바꿔 제안했다면 사용자가 여기서 되돌릴 수 있다.
+   위쪽 막대에서 면을 바꾸면 대화를 비우고 새 면으로 첫 질문을 다시 부른다.
+6. 사용자가 `MAX_QUESTIONS`(`chatClient.ts`, 지금은 2)번 답하면, 또는 "바로 결과 보기"를 누르면
+   같은 통로로 정리를 부른다. 이번에는 `bodyPartId`·`side`·`symptoms`·`predictedCondition`·
+   `summary` 다섯 가지가 든 결과를 받는다. `summary`는 줄바꿈으로 나뉜 여러 줄이고,
+   `SummaryLines`가 이를 목록으로 그린다.
+7. 화면이 결과를 보여주고 `PredictionFeedback`이 맞는지 묻는다. "맞아요"는 곧바로 저장하고,
+   "아니에요"는 무엇이 다른지 적게 한 뒤 그 말을 대화 끝에 붙여 정리를 다시 부른다. AI가 부위나
+   면을 바꿔 제안했다면 사용자가 여기서 되돌릴 수 있다.
 8. 사용자가 저장을 누르면 화면이 `records.ts`에 기록을 넘긴다. `records.ts`가 고유 식별자와 저장
    일시를 붙여 `localStorage`에 쓴다.
 9. 홈 화면으로 돌아가면 `records.ts`가 읽은 기록을 바탕으로 `BodyModel`이 오른쪽 무릎 덩어리를
