@@ -23,6 +23,8 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
+    // 브라우저 탭에 뜨는 아이콘. 홈 화면 아이콘과 같은 그림을 쓴다.
+    icon: "/icons/icon-192.png",
     apple: "/apple-touch-icon.png",
   },
   other: {
