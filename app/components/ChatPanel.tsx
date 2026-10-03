@@ -13,7 +13,7 @@
  * 보기 카드는 마지막 질문에만 붙는다. 지나간 질문의 보기를 다시 누르면 대화가 어디까지 왔는지
  * 알 수 없어진다. 답한 질문은 위로 올라가 지난 이야기가 된다.
  *
- * 주고받은 말 전체는 저장되지 않는다. 저장되는 것은 "정리하기"로 받은 결과뿐이다.
+ * 주고받은 말 전체는 저장되지 않는다. 저장되는 것은 정리 결과뿐이다.
  * 호출이 실패해도 체크한 증상은 지우지 않는다. 실패한 채로도 저장할 수 있어야 하기 때문이다.
  */
 
@@ -26,6 +26,11 @@ type ChatPanelProps = {
   choices: Choice[];
   busy: boolean;
   error: string | null;
+  /**
+   * 답하는 칸을 보여줄지. 정리 결과가 나오면 대화는 끝나고, 고칠 말은 결과 아래에서 받는다.
+   * 칸이 둘이면 어디에 적어야 하는지 헷갈린다.
+   */
+  answerable: boolean;
   onSend: (text: string) => void;
   onRetry: () => void;
 };
@@ -35,6 +40,7 @@ export default function ChatPanel({
   choices,
   busy,
   error,
+  answerable,
   onSend,
   onRetry,
 }: ChatPanelProps) {
@@ -45,7 +51,7 @@ export default function ChatPanel({
   }, [messages.length, busy]);
 
   const last = messages[messages.length - 1];
-  const asking = choices.length > 0 && last?.role === "assistant";
+  const asking = answerable && choices.length > 0 && last?.role === "assistant";
   /** 지금 묻는 질문은 답하는 칸이 맡는다. 같은 말을 말풍선으로 한 번 더 보여주지 않는다. */
   const past = asking ? messages.slice(0, -1) : messages;
 
@@ -96,13 +102,15 @@ export default function ChatPanel({
         질문이 바뀌면 답하던 내용이 남아 있으면 안 된다. `key`를 주면 칸이 새로 만들어지면서
         체크와 적던 말이 함께 비워진다. 지우는 코드를 따로 두지 않아도 된다.
       */}
-      <AnswerBox
-        key={messages.length}
-        question={asking ? last.content : null}
-        choices={choices}
-        busy={busy}
-        onSend={onSend}
-      />
+      {answerable && (
+        <AnswerBox
+          key={messages.length}
+          question={asking ? last.content : null}
+          choices={choices}
+          busy={busy}
+          onSend={onSend}
+        />
+      )}
 
       <div ref={endRef} />
     </div>

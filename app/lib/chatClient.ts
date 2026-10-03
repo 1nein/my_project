@@ -9,6 +9,15 @@ import { isBodyPartId, isSide, type Side } from "@/app/lib/bodyParts";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
+/**
+ * AI가 묻는 질문 수의 한도.
+ *
+ * 사용자가 이만큼 답하면 화면은 더 묻지 않고 곧바로 정리를 불러 예측 병명을 보여준다.
+ * 맞는지 틀린지는 그 결과를 보고 사용자가 말해 고친다. 질문이 끝없이 이어지면 결과를 보기
+ * 전에 지친다. 통로(`app/api/chat/route.ts`)도 이 값을 AI에게 알려 준다.
+ */
+export const MAX_QUESTIONS = 2;
+
 export type ChatContext = {
   bodyPartId: string;
   side: Side;
