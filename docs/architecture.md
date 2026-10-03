@@ -57,8 +57,10 @@ app/
     BodyModel.tsx           3D 인체 — 그리기, 회전, 부위 클릭 알림
     BodyPartPicker.tsx      이름 목록으로 부위를 고르는 대체 입력
     SymptomChecklist.tsx    증상 체크 목록
-    ChatPanel.tsx           AI 대화 주고받기
+    ChatPanel.tsx           AI 대화 — 질문과 보기 카드, 직접 적기
+    SummaryLines.tsx        정리 결과의 요약을 줄 목록으로 그림
     RecordList.tsx          한 부위의 기록 목록
+    ServiceWorkerRegistrar.tsx  오프라인 캐시를 켬. 화면에 아무것도 그리지 않음
   lib/
     bodyParts.ts            부위 25개의 식별자와 한국어 이름
     records.ts              기록 읽기·쓰기·삭제
@@ -80,6 +82,8 @@ docs/                       프로젝트 문서
 | `app/api/chat/route.ts` | OpenAI 호출 | 환경변수 `OPENAI_API_KEY` |
 | `BodyModel.tsx` | 모델을 그리고, 눌린 부위 식별자와 면을 알림 | `/human-body.glb`, `bodyParts.ts` |
 | `BodyPartPicker.tsx` | 이름 목록으로 고르기 | `bodyParts.ts` |
+| `ChatPanel.tsx` | 질문과 보기를 그리고, 사용자의 답을 바깥으로 올림 | 없음. 호출은 화면이 한다 |
+| `SummaryLines.tsx` | 요약 문자열을 줄 단위로 나눠 목록으로 그림 | `records.ts`의 `summaryLines` |
 | `records.ts` | `localStorage` 접근 | 브라우저 `localStorage` |
 | `symptoms.ts` | 기록에서 증상 목록을 뽑음 | `records.ts` |
 | `bodyParts.ts` | 부위 목록 | 없음 |
@@ -91,26 +95,31 @@ docs/                       프로젝트 문서
 
 ## 대표 흐름 — 오른쪽 무릎에 기록을 남기기까지
 
-1. 진단 화면이 `BodyModel`을 띄운다. `BodyModel`이 `/human-body.glb`를 받아 25개 덩어리를 그리고,
-   각 덩어리의 재질을 복제해 둔다.
+1. 홈 화면이 `BodyModel`을 화면 전체에 띄운다. `BodyModel`이 `/human-body.glb`를 받아 25개
+   덩어리를 그리고, 각 덩어리의 재질을 복제해 둔다.
 2. 사용자가 오른쪽 무릎을 누른다. `BodyModel`은 눌린 덩어리의 식별자 `right_knee`를 읽고, 누른
    지점을 모델 자신의 좌표로 바꿔 앞뒤 축 값으로 면을 판별한 뒤, 두 값을 화면에 올려준다.
-   손가락이 일정 거리 이상 움직였으면 돌리기로 보고 아무것도 올려주지 않는다.
-3. 화면이 `symptoms.ts`에 식별자를 넘긴다. `symptoms.ts`는 `records.ts`로 저장된 기록을 읽어 그
-   부위의 기록들에서 증상 이름을 모아 중복을 없앤 목록을 돌려준다. 네트워크 호출이 없으므로
-   기다림이 없다.
-4. `SymptomChecklist`가 그 목록을 보여주고 사용자가 체크한다. 저장된 기록이 없으면 목록이 비어
-   있고 다음 단계로 바로 간다.
-5. `ChatPanel`이 `chatClient.ts`를 통해 `app/api/chat/route.ts`를 부른다. 보내는 것은 부위
-   식별자, 면, 체크한 증상, 지금까지의 대화 메시지다. 서버가 OpenAI API를 부르고 답변을 돌려준다.
-   이 과정이 여러 번 반복된다.
+   손가락이 일정 거리 이상 움직였으면 돌리기로 보고 아무것도 올려주지 않는다. 기록이 없는
+   부위이므로 홈이 `/diagnose?bodyPartId=right_knee&side=front`로 넘어간다.
+3. 진단 화면이 `symptoms.ts`에 식별자를 넘긴다. `symptoms.ts`는 `records.ts`로 저장된 기록을 읽어
+   그 부위의 기록들에서 증상 이름을 모아 중복을 없앤 목록을 돌려준다. 네트워크 호출이 없으므로
+   기다림이 없다. `SymptomChecklist`가 그 목록을 보여주고 사용자가 체크한다. 목록이 비어 있으면
+   아무것도 그리지 않는다.
+4. **부위가 정해지면 진단 화면이 곧바로 `chatClient.ts`를 통해 `app/api/chat/route.ts`를 부른다.**
+   보내는 것은 부위 식별자, 면, 체크한 증상, 지금까지의 대화 메시지(처음에는 빈 배열)다. 서버가
+   OpenAI API를 부르고 질문 하나와 보기 2~5개를 돌려준다. 같은 부위에 두 번 부르지 않도록 화면이
+   막아 둔다. 기록을 고치러 들어온 경우에는 부르지 않는다.
+5. `ChatPanel`이 질문을 카드 제목으로, 보기를 체크 상자 줄로 그린다. 사용자가 고른 보기 이름들은
+   쉼표로 이어져 하나의 사용자 메시지가 되고, 화면이 같은 통로를 다시 부른다. 이 과정이 여러 번
+   반복된다. 보기에 없는 답은 카드 아래 칸에 직접 적는다.
 6. 사용자가 정리를 요청하면 같은 통로로 한 번 더 부르되, 이번에는 `bodyPartId`·`side`·`symptoms`·
-   `predictedCondition`·`summary` 다섯 가지가 든 결과를 받는다.
+   `predictedCondition`·`summary` 다섯 가지가 든 결과를 받는다. `summary`는 줄바꿈으로 나뉜 여러
+   줄이고, `SummaryLines`가 이를 목록으로 그린다.
 7. 화면이 결과를 보여준다. AI가 부위나 면을 바꿔 제안했다면 사용자가 여기서 되돌릴 수 있다.
 8. 사용자가 저장을 누르면 화면이 `records.ts`에 기록을 넘긴다. `records.ts`가 고유 식별자와 저장
    일시를 붙여 `localStorage`에 쓴다.
 9. 홈 화면으로 돌아가면 `records.ts`가 읽은 기록을 바탕으로 `BodyModel`이 오른쪽 무릎 덩어리를
-   강조색으로 칠한다.
+   강조색으로 칠한다. 그 부위를 누르면 화면 아래에서 기록이 올라온다.
 
 ## 화면 사이의 이동
 
@@ -123,7 +132,9 @@ docs/                       프로젝트 문서
 | 홈에서 펼친 기록의 수정을 누름 | `/diagnose?recordId=<기록 id>` | 고칠 기록. 부위·면·증상은 그 기록에서 읽는다 |
 | 진단 화면에서 저장을 마침 | `/` | 없음 |
 
-- `/diagnose`를 아무 값 없이 열면 부위를 고르지 않은 상태로 시작한다.
+- `/diagnose`를 아무 값 없이 열면 부위를 고르지 않은 상태로 시작한다. **진단 화면이 3D 모델을
+  띄우는 것은 이때뿐이다.** 부위가 정해지면 모델 자리는 사라지고, 부위를 바꾸는 일은 위쪽 막대의
+  이름 목록이 맡는다.
 - `recordId`가 저장된 기록에 없으면 값 없이 연 것과 같이 다룬다.
 - `bodyPartId`가 25개 목록에 없거나 `side`가 네 값 밖이면 값 없이 연 것과 같이 다룬다.
 
